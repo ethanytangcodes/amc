@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMC Trainer</title>
+    <meta name="description" content="A FREE interactive trainer which generates math problems for AMC 8/10/12/AIME.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">AMC Trainer</div>
+        <div class="controls">
+            <select id="modeSelect" onchange="changeMode()">
+                <option value="practice">Practice Mode</option>
+                <option value="test">Practice Test</option>
+            </select>
+            <button class="btn" onclick="openSettings()">Settings</button>
+            <button class="btn" onclick="openProgress()">Progress</button>
+            <button class="btn" id="drawToggle" onclick="toggleDraw()">Draw: Off</button>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <div class="timer-display" id="timerDisplay" style="display: none;">
+                ⏱️ <span id="timer">0:00</span>
+            </div>
+            <div class="streak-display">
+                <span class="fire">🔥</span>
+                <span id="streak">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="problem-container">
+        <canvas class="canvas-overlay" id="drawCanvas"></canvas>
+        <div class="problem-id" id="problemId">Loading...</div>
+        <div class="problem-text" id="problemText">Loading problem...</div>
+        
+        <div class="answer-section" id="answerSection" style="display: none;">
+            <input type="text" id="answer" placeholder="Your answer" autocomplete="off">
+            <button class="btn btn-primary" onclick="checkAnswer()">Submit</button>
+            <button class="btn btn-secondary" onclick="giveUp()">Give Up</button>
+        </div>
+
+        <div id="resultMessage"></div>
+        <div class="solution" id="solution"></div>
+    </div>
+
+    <div class="draw-tools" id="drawTools" style="display: none;">
+        <div class="color-btn active" style="background: #000;" onclick="setColor('#000', this)"></div>
+        <div class="color-btn" style="background: #e74c3c;" onclick="setColor('#e74c3c', this)"></div>
+        <div class="color-btn" style="background: #3498db;" onclick="setColor('#3498db', this)"></div>
+        <div class="color-btn" style="background: #2ecc71;" onclick="setColor('#2ecc71', this)"></div>
+        <div class="color-btn" style="background: #f39c12;" onclick="setColor('#f39c12', this)"></div>
+        <div class="color-btn" style="background: #9b59b6;" onclick="setColor('#9b59b6', this)"></div>
+        <button class="tool-btn" onclick="clearCanvas()" title="Clear">🗑️</button>
+    </div>
+
+    <button class="new-problem-btn" onclick="getNewProblem()" title="New Problem (Ctrl+Enter)">→</button>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-btn" onclick="closeSettings()">×</button>
+            </div>
+
+            <div class="settings-group">
+                <label>Timer (minutes per problem, 0 = off)</label>
+                <div class="range-group">
+                    <input type="number" id="timerMinutes" value="0" min="0" max="60" onchange="updateSettings()">
+                    <span>minutes</span>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label>Competition Levels</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="8" checked onchange="updateSettings()"> AMC 8
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="10" checked onchange="updateSettings()"> AMC 10
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="12" checked onchange="updateSettings()"> AMC 12
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="AIME" checked onchange="updateSettings()"> AIME
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label>Year Range</label>
+                <div class="range-group">
+                    <input type="number" id="yearMin" value="2000" min="1983" max="2020" onchange="updateSettings()">
+                    <span>to</span>
+                    <input type="number" id="yearMax" value="2020" min="1983" max="2020" onchange="updateSettings()">
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label>AMC Problem Number Range</label>
+                <div class="range-group">
+                    <input type="number" id="problemMin" value="1" min="1" max="25" onchange="updateSettings()">
+                    <span>to</span>
+                    <input type="number" id="problemMax" value="25" min="1" max="25" onchange="updateSettings()">
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label>AIME Problem Number Range</label>
+                <div class="range-group">
+                    <input type="number" id="aimeProblemMin" value="1" min="1" max="15" onchange="updateSettings()">
+                    <span>to</span>
+                    <input type="number" id="aimeProblemMax" value="15" min="1" max="15" onchange="updateSettings()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div class="modal" id="progressModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Your Progress</h2>
+                <button class="close-btn" onclick="closeProgress()">×</button>
+            </div>
+
+            <div class="matrix-legend">
+                <div class="legend-item">
+                    <div class="legend-box correct"></div>
+                    <span>Correct</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box incorrect"></div>
+                    <span>Incorrect</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box" style="background: white; border-color: #e0e0e0;"></div>
+                    <span>Not Attempted</span>
+                </div>
+            </div>
+
+            <div id="progressMatrix"></div>
+        </div>
+    </div>
+
+    <!-- Test Result Modal -->
+    <div class="modal" id="testResultModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Test Complete!</h2>
+                <button class="close-btn" onclick="closeTestResult()">×</button>
+            </div>
+
+            <div class="test-summary">
+                <h3 id="testTitle"></h3>
+                <div class="test-score" id="testScore"></div>
+                <div>Time Taken: <strong id="testTime"></strong></div>
+                <div class="test-problems" id="testProblems"></div>
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="startNewTest()">Start New Test</button>
+                <button class="btn btn-secondary" style="margin-top: 20px;" onclick="closeTestResult()">Back to Practice</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
