@@ -326,7 +326,7 @@ async function loadTestProblem() {
     const hasAB = amcType !== 'AIME' && year >= 2002;
     const ab = hasAB ? (Math.random() > 0.5 ? 'A' : 'B') : '';
     
-    let url = `https://wandering-sky-a896.cbracketdash.workers.dev/?!${year}_`;
+    let url = `https://amc-proxy.ethantytang11.workers.dev/?!${year}_`;
     
     if (amcType === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
@@ -479,7 +479,7 @@ async function getNewProblem() {
     const hasAB = type !== 'AIME' && year >= 2002;
     const ab = hasAB ? shuffle(['A', 'B'])[0] : '';
     
-    let url = `https://wandering-sky-a896.cbracketdash.workers.dev/?!${year}_`;
+    let url = `https://amc-proxy.ethantytang11.workers.dev/?!${year}_`;
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
