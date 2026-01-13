@@ -11,7 +11,7 @@ let testState = null;
 
 // Load settings
 let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify({
-    levels: ['8', '10', '12', 'AIME'],
+    levels: ['10', '12', 'AIME'],
     yearMin: 2000,
     yearMax: 2020,
     problemMin: 1,
@@ -20,9 +20,6 @@ let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify(
     aimeProblemMax: 15,
     timerMinutes: 0
 }));
-
-// Load progress
-let progress = JSON.parse(localStorage.getItem('amcProgress') || '{}');
 
 // Initialize
 document.getElementById('streak').textContent = streak;
@@ -34,50 +31,86 @@ window.addEventListener('load', () => {
 // Canvas drawing functions
 function initCanvas() {
     canvas = document.getElementById('drawCanvas');
-    const container = canvas.parentElement;
-    canvas.width = container.offsetWidth;
-    canvas.height = container.offsetHeight;
+    const container = document.getElementById('problemContainer');
+    
+    function resizeCanvas() {
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+    }
+    
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
     ctx = canvas.getContext('2d');
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseleave', stopDrawing);
-    canvas.addEventListener('touchstart', handleTouch);
-    canvas.addEventListener('touchmove', handleTouch);
-    canvas.addEventListener('touchend', stopDrawing);
-}
-
-function startDrawing(e) {
-    if (!drawMode) return;
-    drawing = true;
-    const rect = canvas.getBoundingClientRect();
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-}
-
-function draw(e) {
-    if (!drawing || !drawMode) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.stroke();
-}
-
-function stopDrawing() {
-    drawing = false;
-}
-
-function handleTouch(e) {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
+    let lastX = 0;
+    let lastY = 0;
+    
+    canvas.addEventListener('mousedown', (e) => {
+        if (!drawMode) return;
+        drawing = true;
+        const rect = canvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
     });
-    canvas.dispatchEvent(mouseEvent);
+    
+    canvas.addEventListener('mousemove', (e) => {
+        if (!drawing || !drawMode) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        
+        lastX = x;
+        lastY = y;
+    });
+    
+    canvas.addEventListener('mouseup', () => {
+        drawing = false;
+    });
+    
+    canvas.addEventListener('mouseleave', () => {
+        drawing = false;
+    });
+    
+    // Touch support
+    canvas.addEventListener('touchstart', (e) => {
+        if (!drawMode) return;
+        e.preventDefault();
+        drawing = true;
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        lastX = touch.clientX - rect.left;
+        lastY = touch.clientY - rect.top;
+    });
+    
+    canvas.addEventListener('touchmove', (e) => {
+        if (!drawing || !drawMode) return;
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        
+        lastX = x;
+        lastY = y;
+    });
+    
+    canvas.addEventListener('touchend', () => {
+        drawing = false;
+    });
 }
 
 function toggleDraw() {
@@ -209,71 +242,6 @@ function closeSettings() {
     document.getElementById('settingsModal').style.display = 'none';
 }
 
-// Progress functions
-function openProgress() {
-    renderProgressMatrix();
-    document.getElementById('progressModal').style.display = 'flex';
-}
-
-function closeProgress() {
-    document.getElementById('progressModal').style.display = 'none';
-}
-
-function renderProgressMatrix() {
-    const container = document.getElementById('progressMatrix');
-    container.innerHTML = '';
-
-    const grouped = {};
-    for(let key in progress) {
-        const parts = key.split('_');
-        const year = parts[0];
-        const type = parts.slice(1, -1).join('_');
-        const yearType = `${year} ${type}`;
-        
-        if(!grouped[yearType]) grouped[yearType] = {};
-        grouped[yearType][key] = progress[key];
-    }
-
-    const sorted = Object.keys(grouped).sort((a, b) => {
-        const yearA = parseInt(a.split(' ')[0]);
-        const yearB = parseInt(b.split(' ')[0]);
-        return yearB - yearA;
-    });
-
-    sorted.forEach(yearType => {
-        const yearDiv = document.createElement('div');
-        yearDiv.className = 'matrix-year';
-        
-        const title = document.createElement('h3');
-        title.textContent = yearType;
-        yearDiv.appendChild(title);
-
-        const grid = document.createElement('div');
-        grid.className = 'matrix-grid';
-
-        const isAIME = yearType.includes('AIME');
-        const maxProb = isAIME ? 15 : 25;
-
-        for(let i = 1; i <= maxProb; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'matrix-cell';
-            cell.textContent = i;
-
-            const probKey = `${yearType.replace(' ', '_')}_${i}`;
-            if(progress[probKey] === true) {
-                cell.classList.add('correct');
-            } else if(progress[probKey] === false) {
-                cell.classList.add('incorrect');
-            }
-
-            grid.appendChild(cell);
-        }
-
-        yearDiv.appendChild(grid);
-        container.appendChild(yearDiv);
-    });
-}
-
 // Test mode functions
 function changeMode() {
     mode = document.getElementById('modeSelect').value;
@@ -288,7 +256,7 @@ function changeMode() {
 }
 
 function startNewTest() {
-    const testType = prompt('Enter test type: AMC8, AMC10, AMC12, or AIME');
+    const testType = prompt('Enter test type: AMC10, AMC12, or AIME');
     if (!testType) {
         document.getElementById('modeSelect').value = 'practice';
         mode = 'practice';
@@ -298,11 +266,7 @@ function startNewTest() {
     const type = testType.toUpperCase().replace(/\s/g, '');
     let numProblems, totalTime, pointsPerProblem;
     
-    if (type === 'AMC8') {
-        numProblems = 25;
-        totalTime = 40 * 60;
-        pointsPerProblem = 1;
-    } else if (type === 'AMC10' || type === 'AMC12') {
+    if (type === 'AMC10' || type === 'AMC12') {
         numProblems = 25;
         totalTime = 75 * 60;
         pointsPerProblem = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2, 2, 2, 2, 2];
@@ -348,10 +312,7 @@ async function loadTestProblem() {
     const type = testState.type;
     
     let amcType, year;
-    if (type === 'AMC8') {
-        amcType = '8';
-        year = 2000 + Math.floor(Math.random() * 21);
-    } else if (type === 'AMC10') {
+    if (type === 'AMC10') {
         amcType = '10';
         year = 2000 + Math.floor(Math.random() * 21);
     } else if (type === 'AMC12') {
@@ -366,15 +327,12 @@ async function loadTestProblem() {
     const ab = hasAB ? (Math.random() > 0.5 ? 'A' : 'B') : '';
     
     let url = `https://wandering-sky-a896.cbracketdash.workers.dev/?!${year}_`;
-    let problemId = '';
     
     if (amcType === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
         url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems_Problem_${probNum}.html`;
-        problemId = `${year}_AIME${year >= 2000 ? '_' + aimeVersion : ''}_${probNum}`;
     } else {
         url += `AMC_${amcType}${ab}_Problems_Problem_${probNum}.html`;
-        problemId = `${year}_AMC_${amcType}${ab}_${probNum}`;
     }
 
     currentProblem = {
@@ -382,12 +340,17 @@ async function loadTestProblem() {
         answerUrl: url.replace('?!', '?|'),
         id: `Problem ${probNum}`,
         type: amcType,
-        progressKey: problemId,
         testProblemNum: probNum
     };
 
     try {
         const problemResp = await fetch(url);
+        if (!problemResp.ok) {
+            console.log('Problem not found, trying again...');
+            await loadTestProblem();
+            return;
+        }
+        
         const problemText = await problemResp.text();
         const cleanProblem = problemText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
         document.getElementById('problemText').innerHTML = cleanProblem;
@@ -411,7 +374,8 @@ async function loadTestProblem() {
         answerSubmitted = false;
         clearCanvas();
     } catch(e) {
-        document.getElementById('problemText').textContent = 'Error loading problem. Please try again.';
+        console.log('Error loading problem, trying again...');
+        await loadTestProblem();
     }
 }
 
@@ -436,7 +400,7 @@ function finishTest() {
     const secs = timeTaken % 60;
 
     document.getElementById('testTitle').textContent = `${testState.type} Practice Test`;
-    document.getElementById('testScore').textContent = `Score: ${totalScore} / ${isAMC10or12 ? 37.5 : (testState.type === 'AMC8' ? 25 : 15)}`;
+    document.getElementById('testScore').textContent = `Score: ${totalScore} / ${isAMC10or12 ? 37.5 : 15}`;
     document.getElementById('testTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
     
     const problemsDiv = document.getElementById('testProblems');
@@ -516,27 +480,29 @@ async function getNewProblem() {
     const ab = hasAB ? shuffle(['A', 'B'])[0] : '';
     
     let url = `https://wandering-sky-a896.cbracketdash.workers.dev/?!${year}_`;
-    let problemId = '';
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
         url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems_Problem_${prob}.html`;
-        problemId = `${year}_AIME${year >= 2000 ? '_' + aimeVersion : ''}_${prob}`;
     } else {
         url += `AMC_${type}${ab}_Problems_Problem_${prob}.html`;
-        problemId = `${year}_AMC_${type}${ab}_${prob}`;
     }
     
     currentProblem = {
         url: url,
         answerUrl: url.replace('?!', '?|'),
         id: `${year} ${type === 'AIME' ? 'AIME' : 'AMC ' + type}${ab} #${prob}`,
-        type: type,
-        progressKey: problemId
+        type: type
     };
     
     try {
         const problemResp = await fetch(url);
+        if (!problemResp.ok) {
+            console.log('Problem not found (404), getting a new one...');
+            await getNewProblem();
+            return;
+        }
+        
         const problemText = await problemResp.text();
         const cleanProblem = problemText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
         document.getElementById('problemText').innerHTML = cleanProblem;
@@ -561,7 +527,8 @@ async function getNewProblem() {
             startTimer(settings.timerMinutes);
         }
     } catch(e) {
-        document.getElementById('problemText').textContent = 'Error loading problem. Please try again.';
+        console.log('Error loading problem, getting a new one...');
+        await getNewProblem();
     }
 }
 
@@ -599,8 +566,6 @@ function checkAnswer(timeUp = false) {
     }
 
     stopTimer();
-    progress[currentProblem.progressKey] = correct;
-    localStorage.setItem('amcProgress', JSON.stringify(progress));
 
     const resultDiv = document.getElementById('resultMessage');
     if (correct) {
@@ -616,6 +581,7 @@ function checkAnswer(timeUp = false) {
             </div>
         `;
         createConfetti();
+        document.getElementById('answerSection').style.display = 'none';
     } else {
         streak = 0;
         localStorage.setItem('streak', '0');
@@ -630,8 +596,6 @@ function checkAnswer(timeUp = false) {
             </div>
         `;
     }
-
-    document.getElementById('answerSection').style.display = 'none';
 }
 
 function giveUp() {
@@ -641,9 +605,6 @@ function giveUp() {
         streak = 0;
         localStorage.setItem('streak', '0');
         document.getElementById('streak').textContent = '0';
-        
-        progress[currentProblem.progressKey] = false;
-        localStorage.setItem('amcProgress', JSON.stringify(progress));
 
         const resultDiv = document.getElementById('resultMessage');
         resultDiv.className = 'result-message result-incorrect';
@@ -680,7 +641,6 @@ document.addEventListener('keydown', (e) => {
     if(e.ctrlKey && e.key === 'Enter') getNewProblem();
     if(e.key === 'Escape') {
         closeSettings();
-        closeProgress();
         if(drawMode) toggleDraw();
     }
 });
@@ -688,9 +648,6 @@ document.addEventListener('keydown', (e) => {
 // Close modals on outside click
 document.getElementById('settingsModal').addEventListener('click', (e) => {
     if(e.target.id === 'settingsModal') closeSettings();
-});
-document.getElementById('progressModal').addEventListener('click', (e) => {
-    if(e.target.id === 'progressModal') closeProgress();
 });
 document.getElementById('testResultModal').addEventListener('click', (e) => {
     if(e.target.id === 'testResultModal') closeTestResult();
