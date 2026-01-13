@@ -483,9 +483,9 @@ async function getNewProblem() {
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems_Problem_${prob}.html`;
+        url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems/Problem_${prob}`;
     } else {
-        url += `AMC_${type}${ab}_Problems_Problem_${prob}.html`;
+        url += `AMC_${type}${ab}_Problems/Problem_${prob}`;
     }
     
     currentProblem = {
