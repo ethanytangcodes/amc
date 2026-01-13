@@ -363,8 +363,7 @@ async function loadTestProblem() {
         
         const answerResp = await fetch(currentProblem.answerUrl);
         const answerText = await answerResp.text();
-        const rawAnswer = answerText.split("b'")[1]?.split("'")[0] || '';
-        currentProblem.answer = rawAnswer.replace(/'/g, '');
+        currentProblem.answer = answerText.trim().toUpperCase();
         
         document.getElementById('problemId').textContent = `${testState.type} - Problem ${probNum} of ${testState.totalProblems}`;
         document.getElementById('answerSection').style.display = 'flex';
@@ -504,13 +503,12 @@ async function getNewProblem() {
         }
         
         const problemText = await problemResp.text();
-        const cleanProblem = problemText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
+        const cleanProblem = problemText.trim();
         document.getElementById('problemText').innerHTML = cleanProblem;
         
         const solutionResp = await fetch(url.replace('?!', '?$'));
         const solutionText = await solutionResp.text();
-        let cleanSolution = solutionText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
-        cleanSolution = cleanSolution.replace(/<a[^>]*href="[^"]*artofproblemsolving\.com[^"]*"[^>]*>.*?<\/a>/gi, '');
+        const cleanSolution = solutionText.trim();
         document.getElementById('solution').innerHTML = cleanSolution;
         
         const answerResp = await fetch(currentProblem.answerUrl);
