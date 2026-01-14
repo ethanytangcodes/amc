@@ -10,7 +10,7 @@ let mode = 'practice';
 let testState = null;
 
 // REPLACE THIS WITH YOUR WORKER URL
-const WORKER_URL = 'https://amc-proxy.ethantytang11.workers.dev';
+const WORKER_URL = 'https://your-worker.workers.dev';
 
 // Load settings
 let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify({
@@ -502,17 +502,20 @@ async function getNewProblem() {
     const ab = hasAB ? shuffle(['A', 'B'])[0] : '';
     
     let path = '';
+    let displayId = '';
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        path = `${year}_AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems/Problem_${prob}`;
+        path = `${year}_AIME${year >= 2000 ? '_' + aimeVersion : ''}_Problems/Problem_${prob}`;
+        displayId = `${year} AIME${year >= 2000 ? ' ' + aimeVersion : ''} #${prob}`;
     } else {
         path = `${year}_AMC_${type}${ab}_Problems/Problem_${prob}`;
+        displayId = `${year} AMC ${type}${ab} #${prob}`;
     }
     
     currentProblem = {
         path: path,
-        id: `${year} ${type === 'AIME' ? 'AIME' : 'AMC ' + type}${ab} #${prob}`,
+        id: displayId,
         type: type
     };
     
