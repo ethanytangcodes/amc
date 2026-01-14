@@ -10,7 +10,7 @@ let mode = 'practice';
 let testState = null;
 
 // REPLACE THIS WITH YOUR WORKER URL
-const WORKER_URL = 'https://amc-proxy.ethantytang11.workers.dev';
+const WORKER_URL = 'https://your-worker.workers.dev';
 
 // Load settings
 let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify({
@@ -354,17 +354,39 @@ async function loadTestProblem() {
         }
         
         const problemText = await problemResp.text();
+        
+        // Check if we got a full page
+        if (problemText.includes('<!DOCTYPE') || problemText.includes('<html') || problemText === 'Problem content not found') {
+            console.log('Problem content issue, retrying...');
+            await loadTestProblem();
+            return;
+        }
+        
         document.getElementById('problemText').innerHTML = problemText;
         
-        const solutionResp = await fetch(`${WORKER_URL}/?$${path}`);
+        const solutionResp = await fetch(`${WORKER_URL}/?${path}`);
         const solutionText = await solutionResp.text();
-        document.getElementById('solution').innerHTML = solutionText;
+        
+        if (solutionText !== 'Solution not found') {
+            document.getElementById('solution').innerHTML = solutionText;
+        } else {
+            document.getElementById('solution').innerHTML = '<p>Solution not available.</p>';
+        }
         
         const answerResp = await fetch(`${WORKER_URL}/?|${path}`);
         const answerText = await answerResp.text();
-        currentProblem.answer = answerText.trim().toUpperCase();
         
-        console.log('Correct answer:', currentProblem.answer);
+        const cleanAnswer = answerText.trim().toUpperCase();
+        
+        if (cleanAnswer === 'NOT_FOUND' || cleanAnswer === 'INVALID') {
+            console.log('Answer not found, retrying...');
+            await loadTestProblem();
+            return;
+        }
+        
+        currentProblem.answer = cleanAnswer;
+        
+        console.log('Test Problem:', currentProblem.id, 'Answer:', currentProblem.answer);
         
         document.getElementById('problemId').textContent = `${testState.type} - Problem ${probNum} of ${testState.totalProblems}`;
         document.getElementById('answerSection').style.display = 'flex';
@@ -503,16 +525,45 @@ async function getNewProblem() {
         }
         
         const problemText = await problemResp.text();
+        
+        // Check if we got a full page (contains DOCTYPE or <html>)
+        if (problemText.includes('<!DOCTYPE') || problemText.includes('<html')) {
+            console.log('Got full page instead of problem content, retrying...');
+            await getNewProblem();
+            return;
+        }
+        
+        if (problemText === 'Problem content not found') {
+            console.log('Problem content not found, retrying...');
+            await getNewProblem();
+            return;
+        }
+        
         document.getElementById('problemText').innerHTML = problemText;
         
-        const solutionResp = await fetch(`${WORKER_URL}/?$${path}`);
+        const solutionResp = await fetch(`${WORKER_URL}/?${path}`);
         const solutionText = await solutionResp.text();
-        document.getElementById('solution').innerHTML = solutionText;
+        
+        if (solutionText !== 'Solution not found') {
+            document.getElementById('solution').innerHTML = solutionText;
+        } else {
+            document.getElementById('solution').innerHTML = '<p>Solution not available for this problem.</p>';
+        }
         
         const answerResp = await fetch(`${WORKER_URL}/?|${path}`);
         const answerText = await answerResp.text();
-        currentProblem.answer = answerText.trim().toUpperCase();
         
+        const cleanAnswer = answerText.trim().toUpperCase();
+        
+        if (cleanAnswer === 'NOT_FOUND' || cleanAnswer === 'INVALID') {
+            console.log('Answer not found, retrying...');
+            await getNewProblem();
+            return;
+        }
+        
+        currentProblem.answer = cleanAnswer;
+        
+        console.log('Problem:', currentProblem.id);
         console.log('Correct answer:', currentProblem.answer);
         
         document.getElementById('problemId').textContent = currentProblem.id;
