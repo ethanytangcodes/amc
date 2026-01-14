@@ -9,6 +9,9 @@ let timeLeft = 0;
 let mode = 'practice';
 let testState = null;
 
+// REPLACE THIS WITH YOUR WORKER URL
+const WORKER_URL = 'https://amc-proxy.ethantytang11.workers.dev';
+
 // Load settings
 let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify({
     levels: ['10', '12', 'AIME'],
@@ -326,25 +329,24 @@ async function loadTestProblem() {
     const hasAB = amcType !== 'AIME' && year >= 2002;
     const ab = hasAB ? (Math.random() > 0.5 ? 'A' : 'B') : '';
     
-    let url = `https://amc-proxy.ethantytang11.workers.dev/?!${year}_`;
+    let path = '';
     
     if (amcType === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems_Problem_${probNum}.html`;
+        path = `${year}_AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems/Problem_${probNum}`;
     } else {
-        url += `AMC_${amcType}${ab}_Problems_Problem_${probNum}.html`;
+        path = `${year}_AMC_${amcType}${ab}_Problems/Problem_${probNum}`;
     }
 
     currentProblem = {
-        url: url,
-        answerUrl: url.replace('?!', '?|'),
+        path: path,
         id: `Problem ${probNum}`,
         type: amcType,
         testProblemNum: probNum
     };
 
     try {
-        const problemResp = await fetch(url);
+        const problemResp = await fetch(`${WORKER_URL}/?!${path}`);
         if (!problemResp.ok) {
             console.log('Problem not found, trying again...');
             await loadTestProblem();
@@ -352,18 +354,17 @@ async function loadTestProblem() {
         }
         
         const problemText = await problemResp.text();
-        const cleanProblem = problemText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
-        document.getElementById('problemText').innerHTML = cleanProblem;
+        document.getElementById('problemText').innerHTML = problemText;
         
-        const solutionResp = await fetch(url.replace('?!', '?$'));
+        const solutionResp = await fetch(`${WORKER_URL}/?$${path}`);
         const solutionText = await solutionResp.text();
-        let cleanSolution = solutionText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
-        cleanSolution = cleanSolution.replace(/<a[^>]*href="[^"]*artofproblemsolving\.com[^"]*"[^>]*>.*?<\/a>/gi, '');
-        document.getElementById('solution').innerHTML = cleanSolution;
+        document.getElementById('solution').innerHTML = solutionText;
         
-        const answerResp = await fetch(currentProblem.answerUrl);
+        const answerResp = await fetch(`${WORKER_URL}/?|${path}`);
         const answerText = await answerResp.text();
         currentProblem.answer = answerText.trim().toUpperCase();
+        
+        console.log('Correct answer:', currentProblem.answer);
         
         document.getElementById('problemId').textContent = `${testState.type} - Problem ${probNum} of ${testState.totalProblems}`;
         document.getElementById('answerSection').style.display = 'flex';
@@ -373,7 +374,7 @@ async function loadTestProblem() {
         answerSubmitted = false;
         clearCanvas();
     } catch(e) {
-        console.log('Error loading problem, trying again...');
+        console.log('Error loading problem, trying again...', e);
         await loadTestProblem();
     }
 }
@@ -410,7 +411,7 @@ function finishTest() {
         item.innerHTML = `
             <span>Problem ${idx + 1}</span>
             <span style="color: ${ans.correct ? '#27ae60' : '#c0392b'}; font-weight: 600;">
-                ${ans.correct ? '✓ Correct' : '✗ Incorrect'} (${ans.userAnswer || 'No answer'})
+                ${ans.correct ? '✓ Correct' : '✗ Incorrect'} (Your: ${ans.userAnswer || 'No answer'}, Correct: ${ans.correctAnswer})
             </span>
         `;
         problemsDiv.appendChild(item);
@@ -478,24 +479,23 @@ async function getNewProblem() {
     const hasAB = type !== 'AIME' && year >= 2002;
     const ab = hasAB ? shuffle(['A', 'B'])[0] : '';
     
-    let url = `https://amc-proxy.ethantytang11.workers.dev/?!${year}_`;
+    let path = '';
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems/Problem_${prob}`;
+        path = `${year}_AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems/Problem_${prob}`;
     } else {
-        url += `AMC_${type}${ab}_Problems/Problem_${prob}`;
+        path = `${year}_AMC_${type}${ab}_Problems/Problem_${prob}`;
     }
     
     currentProblem = {
-        url: url,
-        answerUrl: url.replace('?!', '?|'),
+        path: path,
         id: `${year} ${type === 'AIME' ? 'AIME' : 'AMC ' + type}${ab} #${prob}`,
         type: type
     };
     
     try {
-        const problemResp = await fetch(url);
+        const problemResp = await fetch(`${WORKER_URL}/?!${path}`);
         if (!problemResp.ok) {
             console.log('Problem not found (404), getting a new one...');
             await getNewProblem();
@@ -503,18 +503,17 @@ async function getNewProblem() {
         }
         
         const problemText = await problemResp.text();
-        const cleanProblem = problemText.trim();
-        document.getElementById('problemText').innerHTML = cleanProblem;
+        document.getElementById('problemText').innerHTML = problemText;
         
-        const solutionResp = await fetch(url.replace('?!', '?$'));
+        const solutionResp = await fetch(`${WORKER_URL}/?$${path}`);
         const solutionText = await solutionResp.text();
-        const cleanSolution = solutionText.trim();
-        document.getElementById('solution').innerHTML = cleanSolution;
+        document.getElementById('solution').innerHTML = solutionText;
         
-        const answerResp = await fetch(currentProblem.answerUrl);
+        const answerResp = await fetch(`${WORKER_URL}/?|${path}`);
         const answerText = await answerResp.text();
-        const rawAnswer = answerText.split("b'")[1]?.split("'")[0] || '';
-        currentProblem.answer = rawAnswer.replace(/'/g, '');
+        currentProblem.answer = answerText.trim().toUpperCase();
+        
+        console.log('Correct answer:', currentProblem.answer);
         
         document.getElementById('problemId').textContent = currentProblem.id;
         document.getElementById('answerSection').style.display = 'flex';
@@ -525,7 +524,7 @@ async function getNewProblem() {
             startTimer(settings.timerMinutes);
         }
     } catch(e) {
-        console.log('Error loading problem, getting a new one...');
+        console.log('Error loading problem, getting a new one...', e);
         await getNewProblem();
     }
 }
@@ -545,6 +544,8 @@ function checkAnswer(timeUp = false) {
 
     answerSubmitted = true;
     const correct = userAnswer === currentProblem.answer;
+    
+    console.log('User answer:', userAnswer, 'Correct answer:', currentProblem.answer, 'Match:', correct);
 
     if (mode === 'test') {
         testState.answers.push({
