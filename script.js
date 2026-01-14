@@ -10,7 +10,7 @@ let mode = 'practice';
 let testState = null;
 
 // REPLACE THIS WITH YOUR WORKER URL
-const WORKER_URL = 'https://your-worker.workers.dev';
+const WORKER_URL = 'https://amc-proxy.ethantytang11.workers.dev';
 
 // Load settings
 let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify({
