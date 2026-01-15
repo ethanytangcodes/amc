@@ -26,6 +26,13 @@ let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify(
 
 // Initialize
 document.getElementById('streak').textContent = streak;
+
+// Clean up old settings that might have AMC 8
+if (settings.levels.includes('8')) {
+    settings.levels = settings.levels.filter(l => l !== '8');
+    localStorage.setItem('amcSettings', JSON.stringify(settings));
+}
+
 window.addEventListener('load', () => {
     initCanvas();
     getNewProblem();
