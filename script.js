@@ -495,6 +495,8 @@ async function getNewProblem() {
     
     const year = randomInRange(minYear, maxYear);
     
+    console.log('Generated year:', year, 'Type:', type);
+    
     let probMin, probMax;
     if(type === 'AIME') {
         probMin = settings.aimeProblemMin;
@@ -519,6 +521,9 @@ async function getNewProblem() {
         path = `${year}_AMC_${type}${ab}_Problems/Problem_${prob}`;
         displayId = `${year} AMC ${type}${ab} #${prob}`;
     }
+    
+    console.log('Generated path:', path);
+    console.log('Display ID:', displayId);
     
     currentProblem = {
         path: path,
