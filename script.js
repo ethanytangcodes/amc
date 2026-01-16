@@ -340,9 +340,9 @@ async function loadTestProblem() {
     
     if (amcType === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        path = `${year}_AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems/Problem_${probNum}`;
+        path = String(year) + '_AIME' + (year >= 2000 ? '_' + aimeVersion : '') + '_Problems/Problem_' + String(probNum);
     } else {
-        path = `${year}_AMC_${amcType}${ab}_Problems/Problem_${probNum}`;
+        path = String(year) + '_AMC_' + String(amcType) + String(ab) + '_Problems/Problem_' + String(probNum);
     }
 
     currentProblem = {
@@ -515,11 +515,11 @@ async function getNewProblem() {
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        path = `${year}_AIME${year >= 2000 ? '_' + aimeVersion : ''}_Problems/Problem_${prob}`;
-        displayId = `${year} AIME${year >= 2000 ? ' ' + aimeVersion : ''} #${prob}`;
+        path = String(year) + '_AIME' + (year >= 2000 ? '_' + aimeVersion : '') + '_Problems/Problem_' + String(prob);
+        displayId = String(year) + ' AIME' + (year >= 2000 ? ' ' + aimeVersion : '') + ' #' + String(prob);
     } else {
-        path = `${year}_AMC_${type}${ab}_Problems/Problem_${prob}`;
-        displayId = `${year} AMC ${type}${ab} #${prob}`;
+        path = String(year) + '_AMC_' + String(type) + String(ab) + '_Problems/Problem_' + String(prob);
+        displayId = String(year) + ' AMC ' + String(type) + String(ab) + ' #' + String(prob);
     }
     
     console.log('Generated path:', path);
