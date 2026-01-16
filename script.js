@@ -495,7 +495,12 @@ async function getNewProblem() {
     
     const year = randomInRange(minYear, maxYear);
     
-    console.log('Generated year:', year, 'Type:', type);
+    console.log('=== DEBUG ===');
+    console.log('Raw year value:', year);
+    console.log('Year type:', typeof year);
+    console.log('String(year):', String(year));
+    console.log('minYear:', minYear, 'maxYear:', maxYear);
+    console.log('Type:', type);
     
     let probMin, probMax;
     if(type === 'AIME') {
@@ -510,20 +515,26 @@ async function getNewProblem() {
     const hasAB = type !== 'AIME' && year >= 2002;
     const ab = hasAB ? shuffle(['A', 'B'])[0] : '';
     
+    // Force year to be a proper 4-digit number
+    const yearStr = String(year).padStart(4, '2');
+    const probStr = String(prob);
+    const typeStr = String(type);
+    const abStr = String(ab);
+    
     let path = '';
     let displayId = '';
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        path = String(year) + '_AIME' + (year >= 2000 ? '_' + aimeVersion : '') + '_Problems/Problem_' + String(prob);
-        displayId = String(year) + ' AIME' + (year >= 2000 ? ' ' + aimeVersion : '') + ' #' + String(prob);
+        path = yearStr + '_AIME' + (year >= 2000 ? '_' + aimeVersion : '') + '_Problems/Problem_' + probStr;
+        displayId = yearStr + ' AIME' + (year >= 2000 ? ' ' + aimeVersion : '') + ' #' + probStr;
     } else {
-        path = String(year) + '_AMC_' + String(type) + String(ab) + '_Problems/Problem_' + String(prob);
-        displayId = String(year) + ' AMC ' + String(type) + String(ab) + ' #' + String(prob);
+        path = yearStr + '_AMC_' + typeStr + abStr + '_Problems/Problem_' + probStr;
+        displayId = yearStr + ' AMC ' + typeStr + abStr + ' #' + probStr;
     }
     
-    console.log('Generated path:', path);
-    console.log('Display ID:', displayId);
+    console.log('Final path:', path);
+    console.log('=== END DEBUG ===');
     
     currentProblem = {
         path: path,
