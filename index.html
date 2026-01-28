@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AMC Trainer</title>
-    <meta name="description" content="A FREE interactive trainer which generates math problems for AMC 10/12/AIME.">
+    <meta name="description" content="A FREE interactive trainer which generates math problems for AMC 8/10/12/AIME.">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -75,6 +75,9 @@
             <div class="settings-group">
                 <label>Competition Levels</label>
                 <div class="checkbox-group">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="8" checked onchange="updateSettings()"> AMC 8
+                    </label>
                     <label class="checkbox-item">
                         <input type="checkbox" value="10" checked onchange="updateSettings()"> AMC 10
                     </label>
