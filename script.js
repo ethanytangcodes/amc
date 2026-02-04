@@ -8,6 +8,8 @@ let timerInterval = null;
 let timeLeft = 0;
 let mode = 'practice';
 let testState = null;
+let retryCount = 0; // Track retry attempts
+const MAX_RETRIES = 10; // Prevent infinite loops
 
 // Worker URLs
 const NEW_WORKER_URL = 'https://amc-proxy.ethantytang11.workers.dev';
@@ -384,6 +386,23 @@ async function getNewProblem() {
         return;
     }
 
+    // Reset retry count for new problem request
+    retryCount = 0;
+    await fetchProblem();
+}
+
+async function fetchProblem() {
+    // Check if we've exceeded retry limit
+    if (retryCount >= MAX_RETRIES) {
+        console.error('Max retries exceeded');
+        document.getElementById('problemText').innerHTML = '<p style="color: #e74c3c;">Unable to load problem after multiple attempts. Please try again or adjust your settings.</p>';
+        document.getElementById('problemId').textContent = 'Error';
+        return;
+    }
+
+    retryCount++;
+    console.log(`Attempt ${retryCount}/${MAX_RETRIES}`);
+
     answerSubmitted = false;
     document.getElementById('resultMessage').innerHTML = '';
     document.getElementById('solution').style.display = 'none';
@@ -454,7 +473,7 @@ async function getNewProblem() {
         const problemResp = await fetch(problemURL);
         if (!problemResp.ok) {
             console.log('Problem not found, retrying...');
-            setTimeout(() => getNewProblem(), 100);
+            setTimeout(() => fetchProblem(), 500);
             return;
         }
         
@@ -462,11 +481,12 @@ async function getNewProblem() {
         
         if (problemText.length < 50 || problemText.includes('PROBLEM_NOT_FOUND')) {
             console.log('Invalid problem, retrying...');
-            setTimeout(() => getNewProblem(), 100);
+            setTimeout(() => fetchProblem(), 500);
             return;
         }
         
         document.getElementById('problemText').innerHTML = problemText;
+        document.getElementById('problemId').textContent = displayId;
         
         // Fetch solution
         const solutionResp = await fetch(solutionURL);
@@ -478,33 +498,44 @@ async function getNewProblem() {
         const answerText = await answerResp.text();
         const cleanAnswer = answerText.trim().toUpperCase();
         
-        console.log('Answer:', cleanAnswer);
+        console.log('Raw answer:', answerText);
+        console.log('Clean answer:', cleanAnswer);
         
-        // Validate answer format
-        const isValidAIME = /^\d{3}$/.test(cleanAnswer);
+        // More lenient validation - accept answers that look reasonable
+        const isValidAIME = /^\d{1,3}$/.test(cleanAnswer);
         const isValidAMC = /^[ABCDE]$/.test(cleanAnswer);
         
-        if ((!isValidAIME && !isValidAMC) || cleanAnswer.includes('ANSWER_NOT_FOUND')) {
-            console.log('Invalid answer, retrying...', cleanAnswer);
-            setTimeout(() => getNewProblem(), 100);
+        // For AIME, pad to 3 digits
+        let finalAnswer = cleanAnswer;
+        if (type === 'AIME' && isValidAIME) {
+            finalAnswer = cleanAnswer.padStart(3, '0');
+        }
+        
+        if ((!isValidAIME && !isValidAMC) || cleanAnswer.includes('ANSWER_NOT_FOUND') || cleanAnswer === '') {
+            console.log('Invalid answer format, retrying...', cleanAnswer);
+            setTimeout(() => fetchProblem(), 500);
             return;
         }
         
-        currentProblem.answer = cleanAnswer;
+        currentProblem.answer = finalAnswer;
         
-        console.log('✓ Problem loaded:', displayId, '| Answer:', cleanAnswer);
+        console.log('✓ Problem loaded successfully:', displayId, '| Answer:', finalAnswer);
         
-        document.getElementById('problemId').textContent = displayId;
+        // Show answer section and reset fields
         document.getElementById('answerSection').style.display = 'flex';
         document.getElementById('solution').style.display = 'none';
         document.getElementById('answer').value = '';
+        document.getElementById('answer').focus();
+
+        // Reset retry count on success
+        retryCount = 0;
 
         if (settings.timerMinutes > 0) {
             startTimer(settings.timerMinutes);
         }
     } catch(e) {
         console.error('Error loading problem:', e);
-        setTimeout(() => getNewProblem(), 100);
+        setTimeout(() => fetchProblem(), 500);
     }
 }
 
@@ -513,7 +544,14 @@ function checkAnswer(timeUp = false) {
 
     const userAnswer = document.getElementById('answer').value.toUpperCase().trim();
     const isAIME = currentProblem.type === 'AIME';
-    const validAIME = /^[0-9]{3}$/.test(userAnswer);
+    
+    // Pad AIME answers to 3 digits
+    let processedAnswer = userAnswer;
+    if (isAIME && /^\d{1,3}$/.test(userAnswer)) {
+        processedAnswer = userAnswer.padStart(3, '0');
+    }
+    
+    const validAIME = /^\d{1,3}$/.test(userAnswer);
     const validAMC = /^[ABCDE]$/.test(userAnswer);
     
     if (!timeUp && !((isAIME && validAIME) || (!isAIME && validAMC))) {
@@ -522,14 +560,14 @@ function checkAnswer(timeUp = false) {
     }
 
     answerSubmitted = true;
-    const correct = userAnswer === currentProblem.answer;
+    const correct = processedAnswer === currentProblem.answer;
 
-    console.log('Check:', userAnswer, '===', currentProblem.answer, '?', correct);
+    console.log('Check:', processedAnswer, '===', currentProblem.answer, '?', correct);
 
     if (mode === 'test') {
         testState.answers.push({
             problemNum: testState.currentProblem,
-            userAnswer: userAnswer,
+            userAnswer: processedAnswer,
             correctAnswer: currentProblem.answer,
             correct: correct
         });
