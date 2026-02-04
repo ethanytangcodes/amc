@@ -8,12 +8,9 @@ let timerInterval = null;
 let timeLeft = 0;
 let mode = 'practice';
 let testState = null;
-let retryCount = 0; // Track retry attempts
-const MAX_RETRIES = 10; // Prevent infinite loops
 
-// Worker URLs
-const NEW_WORKER_URL = 'https://amc-proxy.ethantytang11.workers.dev';
-const OLD_WORKER_URL = 'https://wandering-sky-a896.cbracketdash.workers.dev';
+// Worker URL - using old link for all
+const WORKER_URL = 'https://wandering-sky-a896.cbracketdash.workers.dev';
 
 // Load settings
 let settings = JSON.parse(localStorage.getItem('amcSettings') || JSON.stringify({
@@ -316,8 +313,76 @@ function startNewTest() {
 }
 
 async function loadTestProblem() {
-    // Similar to getNewProblem() but for tests - implement based on getNewProblem logic
-    console.log('Loading test problem...');
+    if (!testState) return;
+
+    const probNum = testState.currentProblem;
+    const type = testState.type;
+    
+    let amcType, year;
+    if (type === 'AMC8') {
+        amcType = '8';
+        year = 1999 + Math.floor(Math.random() * 22);
+    } else if (type === 'AMC10') {
+        amcType = '10';
+        year = 2000 + Math.floor(Math.random() * 21);
+    } else if (type === 'AMC12') {
+        amcType = '12';
+        year = 2000 + Math.floor(Math.random() * 21);
+    } else {
+        amcType = 'AIME';
+        year = 1983 + Math.floor(Math.random() * 38);
+    }
+
+    const hasAB = amcType !== 'AIME' && amcType !== '8' && year >= 2002;
+    const ab = hasAB ? (Math.random() > 0.5 ? 'A' : 'B') : '';
+    
+    let url = `${WORKER_URL}/?!${year}_`;
+    
+    if (amcType === 'AIME') {
+        const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
+        url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems_Problem_${probNum}.html`;
+    } else {
+        url += `AMC_${amcType}${ab}_Problems_Problem_${probNum}.html`;
+    }
+
+    currentProblem = {
+        url: url,
+        answerUrl: url.replace('?!', '?|'),
+        id: `Problem ${probNum}`,
+        type: amcType
+    };
+
+    try {
+        const problemResp = await fetch(url);
+        if (!problemResp.ok) {
+            await loadTestProblem();
+            return;
+        }
+        
+        const problemText = await problemResp.text();
+        const cleanProblem = problemText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
+        document.getElementById('problemText').innerHTML = cleanProblem;
+        
+        const solutionResp = await fetch(url.replace('?!', '?$'));
+        const solutionText = await solutionResp.text();
+        let cleanSolution = solutionText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
+        document.getElementById('solution').innerHTML = cleanSolution;
+        
+        const answerResp = await fetch(currentProblem.answerUrl);
+        const answerText = await answerResp.text();
+        const rawAnswer = answerText.split("b'")[1]?.split("'")[0] || '';
+        currentProblem.answer = rawAnswer.replace(/'/g, '').toUpperCase().trim();
+        
+        document.getElementById('problemId').textContent = `${testState.type} - Problem ${probNum} of ${testState.totalProblems}`;
+        document.getElementById('answerSection').style.display = 'flex';
+        document.getElementById('solution').style.display = 'none';
+        document.getElementById('answer').value = '';
+        document.getElementById('resultMessage').innerHTML = '';
+        answerSubmitted = false;
+        clearCanvas();
+    } catch(e) {
+        await loadTestProblem();
+    }
 }
 
 function finishTest() {
@@ -380,28 +445,16 @@ function randomInRange(min, max) {
 }
 
 async function getNewProblem() {
+    if(mode === 'test') {
+        loadTestProblem();
+        return;
+    }
+
     if(settings.levels.length === 0) {
         alert('Please select at least one competition level in settings!');
         openSettings();
         return;
     }
-
-    // Reset retry count for new problem request
-    retryCount = 0;
-    await fetchProblem();
-}
-
-async function fetchProblem() {
-    // Check if we've exceeded retry limit
-    if (retryCount >= MAX_RETRIES) {
-        console.error('Max retries exceeded');
-        document.getElementById('problemText').innerHTML = '<p style="color: #e74c3c;">Unable to load problem after multiple attempts. Please try again or adjust your settings.</p>';
-        document.getElementById('problemId').textContent = 'Error';
-        return;
-    }
-
-    retryCount++;
-    console.log(`Attempt ${retryCount}/${MAX_RETRIES}`);
 
     answerSubmitted = false;
     document.getElementById('resultMessage').innerHTML = '';
@@ -409,14 +462,12 @@ async function fetchProblem() {
     clearCanvas();
 
     const type = shuffle([...settings.levels])[0];
-    const isAMC8 = type === '8';
-    
     let minYear = settings.yearMin;
     let maxYear = settings.yearMax;
     
     if(type === 'AIME') {
         minYear = Math.max(minYear, 1983);
-    } else if (isAMC8) {
+    } else if(type === '8') {
         minYear = Math.max(minYear, 1999);
         maxYear = Math.min(maxYear, 2021);
     } else {
@@ -435,107 +486,58 @@ async function fetchProblem() {
     }
     
     const prob = randomInRange(probMin, probMax);
-    const hasAB = !isAMC8 && type !== 'AIME' && year >= 2002;
+    const hasAB = type !== 'AIME' && type !== '8' && year >= 2002;
     const ab = hasAB ? shuffle(['A', 'B'])[0] : '';
     
-    // Use old worker for AMC 8, new worker for others
-    const workerURL = isAMC8 ? OLD_WORKER_URL : NEW_WORKER_URL;
-    
-    let path = '';
-    let displayId = '';
+    let url = `${WORKER_URL}/?!${year}_`;
     
     if(type === 'AIME') {
         const aimeVersion = year >= 2000 && Math.random() > 0.5 ? 'I' : 'II';
-        path = `${year}_AIME${year >= 2000 ? '_' + aimeVersion : ''}_Problems/Problem_${prob}`;
-        displayId = `${year} AIME${year >= 2000 ? ' ' + aimeVersion : ''} #${prob}`;
-    } else if (isAMC8) {
-        path = `${year}_AMC_8_Problems_Problem_${prob}.html`;
-        displayId = `${year} AMC 8 #${prob}`;
+        url += `AIME_${year >= 2000 ? aimeVersion + '_' : ''}Problems_Problem_${prob}.html`;
     } else {
-        path = `${year}_AMC_${type}${ab}_Problems/Problem_${prob}`;
-        displayId = `${year} AMC ${type}${ab} #${prob}`;
+        url += `AMC_${type}${ab}_Problems_Problem_${prob}.html`;
     }
     
     currentProblem = {
-        path: path,
-        id: displayId,
-        type: type,
-        workerURL: workerURL
+        url: url,
+        answerUrl: url.replace('?!', '?|'),
+        id: `${year} ${type === 'AIME' ? 'AIME' : 'AMC ' + type}${ab} #${prob}`,
+        type: type
     };
     
     try {
-        const problemURL = `${workerURL}/?!${path}`;
-        const solutionURL = `${workerURL}/?$${path}`;
-        const answerURL = `${workerURL}/?|${path}`;
-        
-        console.log('Fetching:', problemURL);
-        
-        const problemResp = await fetch(problemURL);
+        const problemResp = await fetch(url);
         if (!problemResp.ok) {
-            console.log('Problem not found, retrying...');
-            setTimeout(() => fetchProblem(), 500);
+            setTimeout(() => getNewProblem(), 100);
             return;
         }
         
         const problemText = await problemResp.text();
+        const cleanProblem = problemText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
+        document.getElementById('problemText').innerHTML = cleanProblem;
         
-        if (problemText.length < 50 || problemText.includes('PROBLEM_NOT_FOUND')) {
-            console.log('Invalid problem, retrying...');
-            setTimeout(() => fetchProblem(), 500);
-            return;
-        }
-        
-        document.getElementById('problemText').innerHTML = problemText;
-        document.getElementById('problemId').textContent = displayId;
-        
-        // Fetch solution
-        const solutionResp = await fetch(solutionURL);
+        const solutionResp = await fetch(url.replace('?!', '?$'));
         const solutionText = await solutionResp.text();
-        document.getElementById('solution').innerHTML = solutionText.includes('SOLUTION_NOT_FOUND') ? '<p>Solution not available.</p>' : solutionText;
+        let cleanSolution = solutionText.replace(/\\n/g, '\n').replace(/b'/g, '').replace(/'/g, '');
+        document.getElementById('solution').innerHTML = cleanSolution;
         
-        // Fetch answer
-        const answerResp = await fetch(answerURL);
+        const answerResp = await fetch(currentProblem.answerUrl);
         const answerText = await answerResp.text();
-        const cleanAnswer = answerText.trim().toUpperCase();
+        const rawAnswer = answerText.split("b'")[1]?.split("'")[0] || '';
+        currentProblem.answer = rawAnswer.replace(/'/g, '').toUpperCase().trim();
         
-        console.log('Raw answer:', answerText);
-        console.log('Clean answer:', cleanAnswer);
+        console.log('Problem:', currentProblem.id, '| Answer:', currentProblem.answer);
         
-        // More lenient validation - accept answers that look reasonable
-        const isValidAIME = /^\d{1,3}$/.test(cleanAnswer);
-        const isValidAMC = /^[ABCDE]$/.test(cleanAnswer);
-        
-        // For AIME, pad to 3 digits
-        let finalAnswer = cleanAnswer;
-        if (type === 'AIME' && isValidAIME) {
-            finalAnswer = cleanAnswer.padStart(3, '0');
-        }
-        
-        if ((!isValidAIME && !isValidAMC) || cleanAnswer.includes('ANSWER_NOT_FOUND') || cleanAnswer === '') {
-            console.log('Invalid answer format, retrying...', cleanAnswer);
-            setTimeout(() => fetchProblem(), 500);
-            return;
-        }
-        
-        currentProblem.answer = finalAnswer;
-        
-        console.log('✓ Problem loaded successfully:', displayId, '| Answer:', finalAnswer);
-        
-        // Show answer section and reset fields
+        document.getElementById('problemId').textContent = currentProblem.id;
         document.getElementById('answerSection').style.display = 'flex';
         document.getElementById('solution').style.display = 'none';
         document.getElementById('answer').value = '';
-        document.getElementById('answer').focus();
-
-        // Reset retry count on success
-        retryCount = 0;
 
         if (settings.timerMinutes > 0) {
             startTimer(settings.timerMinutes);
         }
     } catch(e) {
-        console.error('Error loading problem:', e);
-        setTimeout(() => fetchProblem(), 500);
+        setTimeout(() => getNewProblem(), 100);
     }
 }
 
@@ -544,14 +546,7 @@ function checkAnswer(timeUp = false) {
 
     const userAnswer = document.getElementById('answer').value.toUpperCase().trim();
     const isAIME = currentProblem.type === 'AIME';
-    
-    // Pad AIME answers to 3 digits
-    let processedAnswer = userAnswer;
-    if (isAIME && /^\d{1,3}$/.test(userAnswer)) {
-        processedAnswer = userAnswer.padStart(3, '0');
-    }
-    
-    const validAIME = /^\d{1,3}$/.test(userAnswer);
+    const validAIME = /^[0-9]{3}$/.test(userAnswer);
     const validAMC = /^[ABCDE]$/.test(userAnswer);
     
     if (!timeUp && !((isAIME && validAIME) || (!isAIME && validAMC))) {
@@ -560,14 +555,12 @@ function checkAnswer(timeUp = false) {
     }
 
     answerSubmitted = true;
-    const correct = processedAnswer === currentProblem.answer;
-
-    console.log('Check:', processedAnswer, '===', currentProblem.answer, '?', correct);
+    const correct = userAnswer === currentProblem.answer;
 
     if (mode === 'test') {
         testState.answers.push({
             problemNum: testState.currentProblem,
-            userAnswer: processedAnswer,
+            userAnswer: userAnswer,
             correctAnswer: currentProblem.answer,
             correct: correct
         });
